@@ -541,7 +541,7 @@ impl<'a, 'mir, 'tcx> ConstPropagator<'a, 'mir, 'tcx> {
     }
 
     fn should_const_prop(&self) -> bool {
-        self.tcx.sess.opts.debugging_opts.mir_opt_level >= 2
+        true
     }
 }
 

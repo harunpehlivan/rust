@@ -14,7 +14,7 @@ pub extern "C" fn callee() -> u32 {
 // CHECK-LABEL: caller
 // SIZE-OPT: ret i32 8
 // SPEED-OPT: ret i32 8
-// NO-OPT: ret i32 8
+// NO-OPT: ret i32 %3
 #[no_mangle]
 pub extern "C" fn caller() -> u32 {
     callee()
