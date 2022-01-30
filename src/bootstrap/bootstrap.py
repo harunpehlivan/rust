@@ -54,7 +54,7 @@ def delete_if_present(path, verbose):
 
 
 def download(path, url, probably_big, verbose):
-    for _ in range(0, 4):
+    for _ in range(4):
         try:
             _download(path, url, probably_big, verbose, True)
             return
@@ -192,10 +192,7 @@ def default_build_triple():
     elif ostype == 'Linux':
         os_from_sp = subprocess.check_output(
             ['uname', '-o']).strip().decode(default_encoding)
-        if os_from_sp == 'Android':
-            ostype = 'linux-android'
-        else:
-            ostype = 'unknown-linux-gnu'
+        ostype = 'linux-android' if os_from_sp == 'Android' else 'unknown-linux-gnu'
     elif ostype == 'SunOS':
         ostype = 'sun-solaris'
         # On Solaris, uname -m will return a machine classification instead
@@ -216,15 +213,11 @@ def default_build_triple():
         # instead, msys defines $MSYSTEM which is MINGW32 on i686 and
         # MINGW64 on x86_64.
         ostype = 'pc-windows-gnu'
-        cputype = 'i686'
-        if os.environ.get('MSYSTEM') == 'MINGW64':
-            cputype = 'x86_64'
+        cputype = 'x86_64' if os.environ.get('MSYSTEM') == 'MINGW64' else 'i686'
     elif ostype.startswith('MSYS'):
         ostype = 'pc-windows-gnu'
     elif ostype.startswith('CYGWIN_NT'):
-        cputype = 'i686'
-        if ostype.endswith('WOW64'):
-            cputype = 'x86_64'
+        cputype = 'x86_64' if ostype.endswith('WOW64') else 'i686'
         ostype = 'pc-windows-gnu'
     else:
         err = "unknown OS type: {}".format(ostype)
@@ -294,9 +287,7 @@ def default_build_triple():
             raise ValueError('unknown byteorder: {}'.format(sys.byteorder))
         # only the n64 ABI is supported, indicate it
         ostype += 'abi64'
-    elif cputype == 'sparc' or cputype == 'sparcv9' or cputype == 'sparc64':
-        pass
-    else:
+    elif cputype not in ['sparc', 'sparcv9', 'sparc64']:
         err = "unknown cpu type: {}".format(cputype)
         sys.exit(err)
 
@@ -560,8 +551,7 @@ class RustBuild(object):
         ... "bin", "cargo")
         True
         """
-        config = self.get_toml(program)
-        if config:
+        if config := self.get_toml(program):
             return os.path.expanduser(config)
         return os.path.join(self.bin_root(), "bin", "{}{}".format(
             program, self.exe_suffix()))
@@ -586,9 +576,7 @@ class RustBuild(object):
     @staticmethod
     def exe_suffix():
         """Return a suffix for executables"""
-        if sys.platform == 'win32':
-            return '.exe'
-        return ''
+        return '.exe' if sys.platform == 'win32' else ''
 
     def bootstrap_binary(self):
         """Return the path of the bootstrap binary
@@ -650,17 +638,13 @@ class RustBuild(object):
 
     def build_triple(self):
         """Build triple as in LLVM"""
-        config = self.get_toml('build')
-        if config:
-            return config
-        return default_build_triple()
+        return config if (config := self.get_toml('build')) else default_build_triple()
 
     def check_submodule(self, module, slow_submodules):
         if not slow_submodules:
-            checked_out = subprocess.Popen(["git", "rev-parse", "HEAD"],
+            return subprocess.Popen(["git", "rev-parse", "HEAD"],
                                            cwd=os.path.join(self.rust_root, module),
                                            stdout=subprocess.PIPE)
-            return checked_out
         else:
             return None
 
@@ -711,12 +695,15 @@ class RustBuild(object):
         filtered_submodules = []
         submodules_names = []
         for module in submodules:
-            if module.endswith("llvm-project"):
-                if self.get_toml('llvm-config') and self.get_toml('lld') != 'true':
-                    continue
+            if (
+                module.endswith("llvm-project")
+                and self.get_toml('llvm-config')
+                and self.get_toml('lld') != 'true'
+            ):
+                continue
             if module.endswith("llvm-emscripten"):
                 backends = self.get_toml('codegen-backends')
-                if backends is None or not 'emscripten' in backends:
+                if backends is None or 'emscripten' not in backends:
                     continue
             check = self.check_submodule(module, slow_submodules)
             filtered_submodules.append((module, check))
@@ -754,7 +741,7 @@ def bootstrap(help_triggered):
     parser.add_argument('--clean', action='store_true')
     parser.add_argument('-v', '--verbose', action='count', default=0)
 
-    args = [a for a in sys.argv if a != '-h' and a != '--help']
+    args = [a for a in sys.argv if a not in ['-h', '--help']]
     args, _ = parser.parse_known_args(args)
 
     # Configure initial bootstrap
@@ -777,14 +764,17 @@ def bootstrap(help_triggered):
 
     build.use_locked_deps = '\nlocked-deps = true' in build.config_toml
 
-    if 'SUDO_USER' in os.environ and not build.use_vendored_sources:
-        if os.environ.get('USER') != os.environ['SUDO_USER']:
-            build.use_vendored_sources = True
-            print('info: looks like you are running this command under `sudo`')
-            print('      and so in order to preserve your $HOME this will now')
-            print('      use vendored sources by default. Note that if this')
-            print('      does not work you should run a normal build first')
-            print('      before running a command like `sudo ./x.py install`')
+    if (
+        'SUDO_USER' in os.environ
+        and not build.use_vendored_sources
+        and os.environ.get('USER') != os.environ['SUDO_USER']
+    ):
+        build.use_vendored_sources = True
+        print('info: looks like you are running this command under `sudo`')
+        print('      and so in order to preserve your $HOME this will now')
+        print('      use vendored sources by default. Note that if this')
+        print('      does not work you should run a normal build first')
+        print('      before running a command like `sudo ./x.py install`')
 
     if build.use_vendored_sources:
         if not os.path.exists('.cargo'):
@@ -798,9 +788,8 @@ def bootstrap(help_triggered):
                 [source.vendored-sources]
                 directory = '{}/vendor'
             """.format(build.rust_root))
-    else:
-        if os.path.exists('.cargo'):
-            shutil.rmtree('.cargo')
+    elif os.path.exists('.cargo'):
+        shutil.rmtree('.cargo')
 
     data = stage0_data(build.rust_root)
     build.date = data['date']

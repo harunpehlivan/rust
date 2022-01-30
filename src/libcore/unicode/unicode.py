@@ -104,13 +104,12 @@ def load_unicode_data(f):
 
         # store decomposition, if given
         if decomp != "":
+            seq = []
             if decomp.startswith('<'):
-                seq = []
                 for i in decomp.split()[1:]:
                     seq.append(int(i, 16))
                 compat_decomp[code] = seq
             else:
-                seq = []
                 for i in decomp.split():
                     seq.append(int(i, 16))
                 canon_decomp[code] = seq
@@ -164,10 +163,7 @@ def load_special_casing(f, to_upper, to_lower, to_title):
                 map_[key] = values
 
 def group_cats(cats):
-    cats_out = {}
-    for cat in cats:
-        cats_out[cat] = group_cat(cats[cat])
-    return cats_out
+    return {cat: group_cat(cats[cat]) for cat in cats}
 
 def group_cat(cat):
     cat_out = []
@@ -195,8 +191,9 @@ def ungroup_cat(cat):
 
 def gen_unassigned(assigned):
     assigned = set(assigned)
-    return ([i for i in range(0, 0xd800) if i not in assigned] +
-            [i for i in range(0xe000, 0x110000) if i not in assigned])
+    return [i for i in range(0xD800) if i not in assigned] + [
+        i for i in range(0xE000, 0x110000) if i not in assigned
+    ]
 
 def to_combines(combs):
     combs_out = []
@@ -211,10 +208,7 @@ def format_table_content(f, content, indent):
     first = True
     for chunk in content.split(","):
         if len(line) + len(chunk) < 98:
-            if first:
-                line += chunk
-            else:
-                line += ", " + chunk
+            line += chunk if first else ", " + chunk
             first = False
         else:
             f.write(line + ",\n")
@@ -231,19 +225,16 @@ def load_properties(f, interestingprops):
         prop = None
         d_lo = 0
         d_hi = 0
-        m = re1.match(line)
-        if m:
+        if m := re1.match(line):
             d_lo = m.group(1)
             d_hi = m.group(1)
             prop = m.group(2)
+        elif m := re2.match(line):
+            d_lo = m.group(1)
+            d_hi = m.group(2)
+            prop = m.group(3)
         else:
-            m = re2.match(line)
-            if m:
-                d_lo = m.group(1)
-                d_hi = m.group(2)
-                prop = m.group(3)
-            else:
-                continue
+            continue
         if interestingprops and prop not in interestingprops:
             continue
         d_lo = int(d_lo, 16)
@@ -263,9 +254,7 @@ def escape_char(c):
 
 def emit_table(f, name, t_data, t_type = "&[(char, char)]", is_pub=True,
         pfun=lambda x: "(%s,%s)" % (escape_char(x[0]), escape_char(x[1]))):
-    pub_string = ""
-    if is_pub:
-        pub_string = "pub "
+    pub_string = "pub " if is_pub else ""
     f.write("    %sconst %s: %s = &[\n" % (pub_string, name, t_type))
     data = ""
     first = True
@@ -306,12 +295,10 @@ def emit_bool_trie(f, name, t_data, is_pub=True):
                 chunk |= 1 << j
         chunks.append(chunk)
 
-    pub_string = ""
-    if is_pub:
-        pub_string = "pub "
+    pub_string = "pub " if is_pub else ""
     f.write("    %sconst %s: &super::BoolTrie = &super::BoolTrie {\n" % (pub_string, name))
     f.write("        r1: [\n")
-    data = ','.join('0x%016x' % chunk for chunk in chunks[0:0x800 // CHUNK])
+    data = ','.join('0x%016x' % chunk for chunk in chunks[:0x800 // CHUNK])
     format_table_content(f, data, 12)
     f.write("\n        ],\n")
 
@@ -354,9 +341,7 @@ def emit_small_bool_trie(f, name, t_data, is_pub=True):
                 print(cp, cp // 64, len(chunks), lo, hi)
             chunks[cp // 64] |= 1 << (cp & 63)
 
-    pub_string = ""
-    if is_pub:
-        pub_string = "pub "
+    pub_string = "pub " if is_pub else ""
     f.write("    %sconst %s: &super::SmallBoolTrie = &super::SmallBoolTrie {\n"
             % (pub_string, name))
 
@@ -379,14 +364,11 @@ def emit_property_module(f, mod, tbl, emit):
     for cat in sorted(emit):
         if cat in ["Cc", "White_Space", "Pattern_White_Space"]:
             emit_small_bool_trie(f, "%s_table" % cat, tbl[cat])
-            f.write("    pub fn %s(c: char) -> bool {\n" % cat)
-            f.write("        %s_table.lookup(c)\n" % cat)
-            f.write("    }\n\n")
         else:
             emit_bool_trie(f, "%s_table" % cat, tbl[cat])
-            f.write("    pub fn %s(c: char) -> bool {\n" % cat)
-            f.write("        %s_table.lookup(c)\n" % cat)
-            f.write("    }\n\n")
+        f.write("    pub fn %s(c: char) -> bool {\n" % cat)
+        f.write("        %s_table.lookup(c)\n" % cat)
+        f.write("    }\n\n")
     f.write("}\n\n")
 
 def emit_conversions_module(f, to_upper, to_lower, to_title):

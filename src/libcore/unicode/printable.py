@@ -46,17 +46,13 @@ def get_codepoints(f):
         name = row[1]
         class_ = row[2]
 
-        if class_first is not None:
-            if not name.endswith("Last>"):
-                raise ValueError("Missing Last after First")
+        if class_first is not None and not name.endswith("Last>"):
+            raise ValueError("Missing Last after First")
 
         for c in range(prev_codepoint + 1, codepoint):
             yield Codepoint(c, class_first)
 
-        class_first = None
-        if name.endswith("First>"):
-            class_first = class_
-
+        class_first = class_ if name.endswith("First>") else None
         yield Codepoint(codepoint, class_)
         prev_codepoint = codepoint
 
@@ -73,7 +69,7 @@ def compress_singletons(singletons):
     for i in singletons:
         upper = i >> 8
         lower = i & 0xff
-        if len(uppers) == 0 or uppers[-1][0] != upper:
+        if not uppers or uppers[-1][0] != upper:
             uppers.append((upper, 1))
         else:
             upper, count = uppers[-1]
@@ -153,13 +149,12 @@ def main():
             else:
                 singletons0.append(a)
                 singletons0.append(a + 1)
+        elif a >= 2 * CUTOFF:
+            extra.append((a, b - a))
+        elif a & CUTOFF:
+            normal1.append((a & ~CUTOFF, b - a))
         else:
-            if a >= 2 * CUTOFF:
-                extra.append((a, b - a))
-            elif a & CUTOFF:
-                normal1.append((a & ~CUTOFF, b - a))
-            else:
-                normal0.append((a, b - a))
+            normal0.append((a, b - a))
 
     singletons0u, singletons0l = compress_singletons(singletons0)
     singletons1u, singletons1l = compress_singletons(singletons1)

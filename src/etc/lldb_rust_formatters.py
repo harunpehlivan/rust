@@ -42,8 +42,11 @@ class LldbType(rustpp.Type):
         return None
 
     def get_fields(self):
-        assert ((self.get_dwarf_type_kind() == rustpp.DWARF_TYPE_CODE_STRUCT) or
-                (self.get_dwarf_type_kind() == rustpp.DWARF_TYPE_CODE_UNION))
+        assert self.get_dwarf_type_kind() in [
+            rustpp.DWARF_TYPE_CODE_STRUCT,
+            rustpp.DWARF_TYPE_CODE_UNION,
+        ]
+
         if self.fields is None:
             self.fields = list(self.ty.fields)
         return self.fields
@@ -79,9 +82,11 @@ def print_val(lldb_val, internal_dict):
     val = LldbValue(lldb_val)
     type_kind = val.type.get_type_kind()
 
-    if (type_kind == rustpp.TYPE_KIND_REGULAR_STRUCT or
-        type_kind == rustpp.TYPE_KIND_REGULAR_UNION or
-        type_kind == rustpp.TYPE_KIND_EMPTY):
+    if type_kind in [
+        rustpp.TYPE_KIND_REGULAR_STRUCT,
+        rustpp.TYPE_KIND_REGULAR_UNION,
+        rustpp.TYPE_KIND_EMPTY,
+    ]:
         return print_struct_val(val,
                                 internal_dict,
                                 omit_first_field = False,
@@ -218,7 +223,7 @@ def print_pointer_val(val, internal_dict):
     sigil = "&"
     type_name = val.type.get_unqualified_type_name()
     if type_name and type_name[0:1] in ["&", "*"]:
-        sigil = type_name[0:1]
+        sigil = type_name[:1]
 
     return sigil + hex(val.as_integer())
 

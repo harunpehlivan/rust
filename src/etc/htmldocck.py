@@ -142,7 +142,7 @@ class CustomHTMLParser(HTMLParser):
         self.__builder = target or ET.TreeBuilder()
 
     def handle_starttag(self, tag, attrs):
-        attrs = dict((k, v or '') for k, v in attrs)
+        attrs = {k: v or '' for k, v in attrs}
         self.__builder.start(tag, attrs)
         if tag in VOID_ELEMENTS:
             self.__builder.end(tag)
@@ -151,7 +151,7 @@ class CustomHTMLParser(HTMLParser):
         self.__builder.end(tag)
 
     def handle_startendtag(self, tag, attrs):
-        attrs = dict((k, v or '') for k, v in attrs)
+        attrs = {k: v or '' for k, v in attrs}
         self.__builder.start(tag, attrs)
         self.__builder.end(tag)
 
@@ -386,7 +386,7 @@ ERR_COUNT = 0
 def check_command(c, cache):
     try:
         cerr = ""
-        if c.cmd == 'has' or c.cmd == 'matches': # string test
+        if c.cmd in ['has', 'matches']: # string test
             regexp = (c.cmd == 'matches')
             if len(c.args) == 1 and not regexp: # @has <path> = file existence
                 try:
@@ -414,23 +414,21 @@ def check_command(c, cache):
                 raise InvalidCheck('Invalid number of @{} arguments'.format(c.cmd))
 
         elif c.cmd == 'count': # count test
-            if len(c.args) == 3: # @count <path> <pat> <count> = count test
-                expected = int(c.args[2])
-                found = get_tree_count(cache.get_tree(c.args[0]), c.args[1])
-                cerr = "Expected {} occurrences but found {}".format(expected, found)
-                ret = expected == found
-            else:
+            if len(c.args) != 3:
                 raise InvalidCheck('Invalid number of @{} arguments'.format(c.cmd))
+            expected = int(c.args[2])
+            found = get_tree_count(cache.get_tree(c.args[0]), c.args[1])
+            cerr = "Expected {} occurrences but found {}".format(expected, found)
+            ret = expected == found
         elif c.cmd == 'has-dir': # has-dir test
-            if len(c.args) == 1: # @has-dir <path> = has-dir test
-                try:
-                    cache.get_dir(c.args[0])
-                    ret = True
-                except FailedCheck as err:
-                    cerr = str(err)
-                    ret = False
-            else:
+            if len(c.args) != 1:
                 raise InvalidCheck('Invalid number of @{} arguments'.format(c.cmd))
+            try:
+                cache.get_dir(c.args[0])
+                ret = True
+            except FailedCheck as err:
+                cerr = str(err)
+                ret = False
         elif c.cmd == 'valid-html':
             raise InvalidCheck('Unimplemented @valid-html')
 

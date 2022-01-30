@@ -113,14 +113,16 @@ def start_breakpoint_listener(target):
         event = lldb.SBEvent()
         try:
             while True:
-                if listener.WaitForEvent(120, event):
-                    if lldb.SBBreakpoint.EventIsBreakpointEvent(event) and \
-                            lldb.SBBreakpoint.GetBreakpointEventTypeFromEvent(event) == \
-                            lldb.eBreakpointEventTypeAdded:
-                        global new_breakpoints
-                        breakpoint = lldb.SBBreakpoint.GetBreakpointFromEvent(event)
-                        print_debug("breakpoint added, id = " + str(breakpoint.id))
-                        new_breakpoints.append(breakpoint.id)
+                if (
+                    listener.WaitForEvent(120, event)
+                    and lldb.SBBreakpoint.EventIsBreakpointEvent(event)
+                    and lldb.SBBreakpoint.GetBreakpointEventTypeFromEvent(event)
+                    == lldb.eBreakpointEventTypeAdded
+                ):
+                    global new_breakpoints
+                    breakpoint = lldb.SBBreakpoint.GetBreakpointFromEvent(event)
+                    print_debug("breakpoint added, id = " + str(breakpoint.id))
+                    new_breakpoints.append(breakpoint.id)
         except:
             print_debug("breakpoint listener shutting down")
 

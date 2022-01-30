@@ -276,10 +276,7 @@ def decode_binary64(x):
             return ZERO
     elif exponent == 0x7FF:
         assert low_bits == 0, "NaN"
-        if negative:
-            return NEG_INF
-        else:
-            return INF
+        return NEG_INF if negative else INF
     else:
         mantissa = low_bits | (1 << 52)
     exponent -= 1023 + 52
@@ -308,10 +305,7 @@ def decode_binary32(x):
         if mantissa == 0:
             return ZERO
     elif exponent == 0xFF:
-        if negative:
-            return NEG_INF
-        else:
-            return INF
+        return NEG_INF if negative else INF
     else:
         mantissa = low_bits | (1 << 23)
     exponent -= 127 + 23

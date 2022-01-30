@@ -223,13 +223,12 @@ while i < len(sys.argv):
             else:
                 need_value_args.append(arg)
                 continue
+        elif arg[2:] == 'enable-' + option.name:
+            value = True
+        elif arg[2:] == 'disable-' + option.name:
+            value = False
         else:
-            if arg[2:] == 'enable-' + option.name:
-                value = True
-            elif arg[2:] == 'disable-' + option.name:
-                value = False
-            else:
-                continue
+            continue
 
         found = True
         if option.name not in known_args:
@@ -241,15 +240,12 @@ while i < len(sys.argv):
         unknown_args.append(arg)
 p("")
 
-# Note: here and a few other places, we use [-1] to apply the *last* value
-# passed.  But if option-checking is enabled, then the known_args loop will
-# also assert that options are only passed once.
-option_checking = ('option-checking' not in known_args
-                   or known_args['option-checking'][-1][1])
-if option_checking:
-    if len(unknown_args) > 0:
+if option_checking := (
+    'option-checking' not in known_args or known_args['option-checking'][-1][1]
+):
+    if unknown_args:
         err("Option '" + unknown_args[0] + "' is not recognized")
-    if len(need_value_args) > 0:
+    if need_value_args:
         err("Option '{0}' needs a value ({0}=val)".format(need_value_args[0]))
 
 # Parse all known arguments into a configuration structure that reflects the
@@ -341,23 +337,13 @@ for key in known_args:
         set('rust.lld', True)
         set('rust.llvm-tools', True)
         set('build.extended', True)
-    elif option.name == 'option-checking':
-        # this was handled above
-        pass
-    else:
+    elif option.name != 'option-checking':
         raise RuntimeError("unhandled option {}".format(option.name))
 
 set('build.configure-args', sys.argv[1:])
 
-# "Parse" the `config.toml.example` file into the various sections, and we'll
-# use this as a template of a `config.toml` to write out which preserves
-# all the various comments and whatnot.
-#
-# Note that the `target` section is handled separately as we'll duplicate it
-# per configured target, so there's a bit of special handling for that here.
-sections = {}
 cur_section = None
-sections[None] = []
+sections = {None: []}
 section_order = [None]
 targets = {}
 
@@ -402,18 +388,12 @@ def is_number(value):
 # we've got configure.
 def to_toml(value):
     if isinstance(value, bool):
-        if value:
-            return "true"
-        else:
-            return "false"
+        return "true" if value else "false"
     elif isinstance(value, list):
         return '[' + ', '.join(map(to_toml, value)) + ']'
     elif isinstance(value, str):
         # Don't put quotes around numeric values
-        if is_number(value):
-            return value
-        else:
-            return "'" + value + "'"
+        return value if is_number(value) else "'" + value + "'"
     else:
         raise RuntimeError('no toml')
 

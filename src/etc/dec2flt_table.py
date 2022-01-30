@@ -57,21 +57,14 @@ def ratio_to_float(u, v, k):
     q, r = divmod(u, v)
     v_r = v - r
     z = Fp(q, k)
-    if r < v_r:
-        return z
-    elif r > v_r:
-        return next_float(z)
-    elif q % 2 == 0:
+    if r < v_r or r <= v_r and q % 2 == 0:
         return z
     else:
         return next_float(z)
 
 
 def next_float(z):
-    if z.sig == MAX_SIG:
-        return Fp(MIN_SIG, z.exp + 1)
-    else:
-        return Fp(z.sig + 1, z.exp)
+    return Fp(MIN_SIG, z.exp + 1) if z.sig == MAX_SIG else Fp(z.sig + 1, z.exp)
 
 
 def error(f, e, z):

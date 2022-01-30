@@ -113,8 +113,11 @@ class Type(object):
         objects represent the variants of the enum. Field-objects must have a
         `name` attribute that gives their name as specified in DWARF.
         """
-        assert ((self.get_dwarf_type_kind() == DWARF_TYPE_CODE_STRUCT) or
-                (self.get_dwarf_type_kind() == DWARF_TYPE_CODE_UNION))
+        assert self.get_dwarf_type_kind() in [
+            DWARF_TYPE_CODE_STRUCT,
+            DWARF_TYPE_CODE_UNION,
+        ]
+
         raise NotImplementedError("Override this method")
 
     def get_wrapped_value(self):
@@ -241,11 +244,10 @@ class Type(object):
         if actual_field_count != len(expected_fields):
             return False
 
-        for i in range(0, actual_field_count):
-            if actual_fields[i].name != expected_fields[i]:
-                return False
-
-        return True
+        return all(
+            actual_fields[i].name == expected_fields[i]
+            for i in range(actual_field_count)
+        )
 
     def __all_fields_conform_to_tuple_field_naming(self, start_index):
         fields = self.get_fields()
@@ -364,8 +366,7 @@ def extract_tail_head_ptr_and_cap_from_std_vecdeque(vec_val):
     return (tail, head, data_ptr, capacity)
 
 def extract_length_and_ptr_from_slice(slice_val):
-    assert (slice_val.type.get_type_kind() == TYPE_KIND_SLICE or
-            slice_val.type.get_type_kind() == TYPE_KIND_STR_SLICE)
+    assert slice_val.type.get_type_kind() in [TYPE_KIND_SLICE, TYPE_KIND_STR_SLICE]
 
     length_field_index = SLICE_FIELD_NAMES.index(SLICE_FIELD_NAME_LENGTH)
     ptr_field_index = SLICE_FIELD_NAMES.index(SLICE_FIELD_NAME_DATA_PTR)
@@ -388,10 +389,7 @@ def extract_type_name(qualified_type_name):
         end_of_search = len(qualified_type_name)
 
     index = qualified_type_name.rfind("::", 0, end_of_search)
-    if index < 0:
-        return qualified_type_name
-    else:
-        return qualified_type_name[index + 2:]
+    return qualified_type_name if index < 0 else qualified_type_name[index + 2:]
 
 try:
     compat_str = unicode  # Python 2

@@ -16,8 +16,7 @@ rust_enabled = 'set language rust' in gdb.execute('complete set language ru', to
 # This fix went in 8.1, so check for that.
 # See https://github.com/rust-lang/rust/issues/56730
 gdb_81 = False
-_match = re.search('([0-9]+)\\.([0-9]+)', gdb.VERSION)
-if _match:
+if _match := re.search('([0-9]+)\\.([0-9]+)', gdb.VERSION):
     if int(_match.group(1)) > 8 or (int(_match.group(1)) == 8 and int(_match.group(2)) >= 1):
         gdb_81 = True
 
@@ -54,8 +53,11 @@ class GdbType(rustpp.Type):
             return rustpp.DWARF_TYPE_CODE_ENUM
 
     def get_fields(self):
-        assert ((self.get_dwarf_type_kind() == rustpp.DWARF_TYPE_CODE_STRUCT) or
-                (self.get_dwarf_type_kind() == rustpp.DWARF_TYPE_CODE_UNION))
+        assert self.get_dwarf_type_kind() in [
+            rustpp.DWARF_TYPE_CODE_STRUCT,
+            rustpp.DWARF_TYPE_CODE_UNION,
+        ]
+
         if self.fields is None:
             self.fields = list(self.ty.fields())
         return self.fields
@@ -229,10 +231,7 @@ class RustStructPrinter(object):
         return cs
 
     def display_hint(self):
-        if self.__is_tuple_like:
-            return "array"
-        else:
-            return ""
+        return "array" if self.__is_tuple_like else ""
 
 
 class RustSlicePrinter(object):
@@ -301,10 +300,7 @@ class RustStdVecDequePrinter(object):
     def to_string(self):
         (tail, head, data_ptr, cap) = \
             rustpp.extract_tail_head_ptr_and_cap_from_std_vecdeque(self.__val)
-        if head >= tail:
-            size = head - tail
-        else:
-            size = cap + head - tail
+        size = head - tail if head >= tail else cap + head - tail
         return (self.__val.type.get_unqualified_type_name() +
                 ("(len: %i, cap: %i)" % (size, cap)))
 
@@ -312,10 +308,7 @@ class RustStdVecDequePrinter(object):
         (tail, head, data_ptr, cap) = \
             rustpp.extract_tail_head_ptr_and_cap_from_std_vecdeque(self.__val)
         gdb_ptr = data_ptr.get_wrapped_value()
-        if head >= tail:
-            size = head - tail
-        else:
-            size = cap + head - tail
+        size = head - tail if head >= tail else cap + head - tail
         for index in xrange(0, size):
             yield (str(index), (gdb_ptr + ((tail + index) % cap)).dereference())
 
@@ -337,8 +330,7 @@ def children_of_node(boxed_node, height, want_values):
     for i in xrange(0, length + 1):
         if height > 0:
             child_ptr = node_ptr['edges'][i]['value']['value']
-            for child in children_of_node(child_ptr, height - 1, want_values):
-                yield child
+            yield from children_of_node(child_ptr, height - 1, want_values)
         if i < length:
             if want_values:
                 yield (keys[i]['value']['value'], values[i]['value']['value'])
@@ -360,10 +352,8 @@ class RustStdBTreeSetPrinter(object):
     def children(self):
         root = self.__val.get_wrapped_value()['map']['root']
         node_ptr = root['node']
-        i = 0
-        for child in children_of_node(node_ptr, root['height'], False):
+        for i, child in enumerate(children_of_node(node_ptr, root['height'], False)):
             yield (str(i), child)
-            i = i + 1
 
 
 class RustStdBTreeMapPrinter(object):
@@ -381,11 +371,9 @@ class RustStdBTreeMapPrinter(object):
     def children(self):
         root = self.__val.get_wrapped_value()['root']
         node_ptr = root['node']
-        i = 0
-        for child in children_of_node(node_ptr, root['height'], True):
+        for i, child in enumerate(children_of_node(node_ptr, root['height'], True)):
             yield (str(i), child[0])
             yield (str(i), child[1])
-            i = i + 1
 
 
 class RustStdStringPrinter(object):
@@ -437,9 +425,7 @@ class IdentityPrinter(object):
 
 
 def get_field_at_index(gdb_val, index):
-    i = 0
-    for field in gdb_val.type.fields():
+    for i, field in enumerate(gdb_val.type.fields()):
         if i == index:
             return field
-        i += 1
     return None

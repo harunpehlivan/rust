@@ -12,9 +12,7 @@ STABLE_CRATES = ['std', 'alloc', 'core', 'proc_macro',
 
 
 def convert_to_string(s):
-    if s.__class__.__name__ == 'bytes':
-        return s.decode('utf-8')
-    return s
+    return s.decode('utf-8') if s.__class__.__name__ == 'bytes' else s
 
 
 def exec_command(command, to_input=None):
@@ -34,7 +32,7 @@ def check_lib(lib):
     stdout, stderr = exec_command([os.environ['RUSTC'], '-', '--crate-type', 'rlib',
                                    '--extern', '{}={}'.format(lib['name'], lib['path'])],
                                   to_input='extern crate {};'.format(lib['name']))
-    if not 'use of unstable library feature' in '{}{}'.format(stdout, stderr):
+    if 'use of unstable library feature' not in '{}{}'.format(stdout, stderr):
         print('crate {} "{}" is not unstable'.format(lib['name'], lib['path']))
         print('{}{}'.format(stdout, stderr))
         print('')

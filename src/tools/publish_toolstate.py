@@ -176,12 +176,10 @@ if __name__ == '__main__':
     save_message_to_path = sys.argv[3]
     github_token = sys.argv[4]
 
-    # assume that PR authors are also owners of the repo where the branch lives
-    relevant_pr_match = re.search(
+    if relevant_pr_match := re.search(
         r'Auto merge of #([0-9]+) - ([^:]+):[^,]+, r=(\S+)',
         cur_commit_msg,
-    )
-    if relevant_pr_match:
+    ):
         number = relevant_pr_match.group(1)
         relevant_pr_user = relevant_pr_match.group(2)
         relevant_pr_number = 'rust-lang/rust#' + number
